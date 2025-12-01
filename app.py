@@ -51,6 +51,15 @@ def format_datetime(dt):
         dt = dt.replace(tzinfo=UZB_TIMEZONE)
     return dt.strftime('%d.%m.%Y %H:%M')
 
+def is_overdue(deadline):
+    """Muddat o'tganligini tekshirish (timezone-safe)"""
+    if deadline is None:
+        return False
+    now = get_uzb_now()
+    if deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=UZB_TIMEZONE)
+    return deadline < now
+
 # Telegram sozlamalari
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 BOSS_TELEGRAM_CHAT_ID = os.environ.get('BOSS_TELEGRAM_CHAT_ID', '')
@@ -887,7 +896,7 @@ ALL_TASKS_TEMPLATE = '''
                     <td>
                         {% if task.deadline %}
                             {{ task.deadline.strftime('%d.%m.%Y %H:%M') }}
-                            {% if task.status == 'pending' and task.deadline < now %}
+                            {% if task.status == 'pending' and is_overdue(task.deadline) %}
                                 <span class="badge badge-overdue">Muddati o'tgan!</span>
                             {% endif %}
                         {% else %}
@@ -944,7 +953,7 @@ MY_TASKS_TEMPLATE = '''
                     <td>
                         {% if task.deadline %}
                             {{ task.deadline.strftime('%d.%m.%Y %H:%M') }}
-                            {% if task.status == 'pending' and task.deadline < now %}
+                            {% if task.status == 'pending' and is_overdue(task.deadline) %}
                                 <span class="badge badge-overdue">Muddati o'tgan!</span>
                             {% endif %}
                         {% else %}
@@ -1197,7 +1206,7 @@ def all_tasks():
     admins = conn.execute('SELECT * FROM users WHERE role = "admin"').fetchall()
     conn.close()
     
-    return render_template_string(BASE_TEMPLATE, title='Barcha topshiriqlar', content=render_template_string(ALL_TASKS_TEMPLATE, tasks=tasks, admins=admins, now=get_uzb_now(), request=request))
+    return render_template_string(BASE_TEMPLATE, title='Barcha topshiriqlar', content=render_template_string(ALL_TASKS_TEMPLATE, tasks=tasks, admins=admins, is_overdue=is_overdue, request=request))
 
 @app.route('/my_tasks')
 @login_required
@@ -1209,7 +1218,7 @@ def my_tasks():
     ).fetchall()
     conn.close()
     
-    return render_template_string(BASE_TEMPLATE, title='Mening topshiriqlarim', content=render_template_string(MY_TASKS_TEMPLATE, tasks=tasks, now=get_uzb_now()))
+    return render_template_string(BASE_TEMPLATE, title='Mening topshiriqlarim', content=render_template_string(MY_TASKS_TEMPLATE, tasks=tasks, is_overdue=is_overdue))
 
 @app.route('/complete_task/<int:id>', methods=['POST'])
 @login_required
