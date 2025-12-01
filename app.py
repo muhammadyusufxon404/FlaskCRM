@@ -817,8 +817,12 @@ ADD_TASK_TEMPLATE = '''
                 </select>
             </div>
             <div class="form-group">
-                <label>Muddat (ixtiyoriy)</label>
-                <input type="datetime-local" name="deadline" class="form-control">
+                <label>Muddat sanasi (ixtiyoriy)</label>
+                <input type="date" name="deadline_date" class="form-control">
+            </div>
+            <div class="form-group">
+                <label>Muddat vaqti (24 soatlik)</label>
+                <input type="time" name="deadline_time" class="form-control" step="60">
             </div>
         </div>
         <button type="submit" class="btn btn-primary">💾 Saqlash</button>
@@ -1127,15 +1131,19 @@ def add_task():
         title = request.form.get('title', '').strip()
         description = request.form.get('description', '').strip()
         assigned_to = request.form.get('assigned_to')
-        deadline_str = request.form.get('deadline', '').strip()
+        deadline_date = request.form.get('deadline_date', '').strip()
+        deadline_time = request.form.get('deadline_time', '').strip()
         
-        # Deadline xavfsiz parsing
+        # Deadline xavfsiz parsing (alohida sana va vaqt)
         deadline = None
-        if deadline_str:
+        if deadline_date:
             try:
-                deadline = datetime.strptime(deadline_str, '%Y-%m-%dT%H:%M')
+                if deadline_time:
+                    deadline = datetime.strptime(f"{deadline_date} {deadline_time}", '%Y-%m-%d %H:%M')
+                else:
+                    deadline = datetime.strptime(f"{deadline_date} 23:59", '%Y-%m-%d %H:%M')
             except ValueError:
-                pass  # Bo'sh yoki noto'g'ri format - None qoladi
+                pass  # Noto'g'ri format - None qoladi
         
         if not title or not assigned_to:
             flash('Topshiriq nomi va admin tanlanishi shart!', 'error')
