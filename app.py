@@ -1308,5 +1308,8 @@ if __name__ == '__main__':
     print("export BOSS_TELEGRAM_CHAT_ID='your_chat_id'")
     print("=" * 50)
     
+    # Production va development uchun portni sozlash
+    port = int(os.environ.get('PORT', 5000))
+    
     # Flask serverni ishga tushirish
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=port, debug=False)
