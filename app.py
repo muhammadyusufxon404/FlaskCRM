@@ -703,6 +703,7 @@ DASHBOARD_TEMPLATE = '''
             <a href="{{ url_for('add_task') }}">➕ Topshiriq qo'shish</a>
             <a href="{{ url_for('all_tasks') }}">📋 Barcha topshiriqlar</a>
             <a href="{{ url_for('export_csv') }}">📥 CSV Export</a>
+            <a href="{{ url_for('change_profile') }}">⚙️ Profil o'zgartirish</a>
         {% endif %}
         <a href="{{ url_for('my_tasks') }}">📝 Mening topshiriqlarim</a>
         <a href="{{ url_for('logout') }}" class="btn btn-danger btn-sm">Chiqish</a>
@@ -732,6 +733,37 @@ DASHBOARD_TEMPLATE = '''
         <h3>{{ stats.overdue }}</h3>
         <p>Muddati o'tgan</p>
     </div>
+</div>
+'''
+
+CHANGE_PROFILE_TEMPLATE = '''
+<div class="card">
+    <div class="card-header">
+        <h1>⚙️ Profil o'zgartirish</h1>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-sm">⬅ Orqaga</a>
+    </div>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label>Yangi foydalanuvchi nomi (ixtiyoriy)</label>
+            <input type="text" name="new_username" class="form-control" placeholder="Hozirgi: {{ session.username }}">
+            <small>Bo'sh qoldirsangiz, o'zgarmaydi</small>
+        </div>
+        <div class="form-group">
+            <label>Yangi parol (ixtiyoriy)</label>
+            <input type="password" name="new_password" class="form-control" placeholder="Yangi parol kiritish">
+            <small>Bo'sh qoldirsangiz, o'zgarmaydi</small>
+        </div>
+        <div class="form-group">
+            <label>Parolni tasdiqlang</label>
+            <input type="password" name="confirm_password" class="form-control" placeholder="Parolni qayta kiritish">
+        </div>
+        <div class="form-group">
+            <label>Hozirgi parol *</label>
+            <input type="password" name="current_password" class="form-control" required placeholder="Tasdiqlash uchun hozirgi parol">
+        </div>
+        <button type="submit" class="btn btn-primary">💾 Saqlash</button>
+    </form>
 </div>
 '''
 
@@ -1248,6 +1280,75 @@ def complete_task(id):
     
     conn.close()
     return redirect(url_for('my_tasks'))
+
+@app.route('/change_profile', methods=['GET', 'POST'])
+@boss_required
+def change_profile():
+    if request.method == 'POST':
+        new_username = request.form.get('new_username', '').strip()
+        new_password = request.form.get('new_password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+        current_password = request.form.get('current_password', '').strip()
+        
+        conn = get_db()
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+        
+        # Hozirgi parolni tekshirish
+        hashed_current = hashlib.sha256(current_password.encode()).hexdigest()
+        if hashed_current != user['password']:
+            flash('Hozirgi parol noto\'g\'ri!', 'error')
+            conn.close()
+            return redirect(url_for('change_profile'))
+        
+        # Yangi username tekshirish
+        if new_username and new_username != session['username']:
+            existing = conn.execute('SELECT * FROM users WHERE username = ?', (new_username,)).fetchone()
+            if existing:
+                flash('Bu username allaqachon mavjud!', 'error')
+                conn.close()
+                return redirect(url_for('change_profile'))
+        
+        # Yangi parolni tekshirish
+        if new_password:
+            if new_password != confirm_password:
+                flash('Parollar mos kelmadi!', 'error')
+                conn.close()
+                return redirect(url_for('change_profile'))
+            if len(new_password) < 4:
+                flash('Parol kamida 4 ta belgidan iborat bo\'lishi kerak!', 'error')
+                conn.close()
+                return redirect(url_for('change_profile'))
+        
+        # O'zgartirishlarni saqlash
+        try:
+            updates = []
+            params = []
+            
+            if new_username and new_username != session['username']:
+                updates.append('username = ?')
+                params.append(new_username)
+                session['username'] = new_username
+            
+            if new_password:
+                updates.append('password = ?')
+                params.append(hashlib.sha256(new_password.encode()).hexdigest())
+            
+            if updates:
+                params.append(session['user_id'])
+                query = f"UPDATE users SET {', '.join(updates)} WHERE id = ?"
+                conn.execute(query, params)
+                conn.commit()
+                flash('Profil muvaffaqiyatli o\'zgartirildi!', 'success')
+            else:
+                flash('Hech narsa o\'zgartirilmadi', 'info')
+        except Exception as e:
+            flash(f'Xatolik: {str(e)}', 'error')
+        finally:
+            conn.close()
+        
+        return redirect(url_for('dashboard'))
+    
+    return render_template_string(BASE_TEMPLATE, title='Profil o\'zgartirish', content=render_template_string(CHANGE_PROFILE_TEMPLATE))
 
 @app.route('/export_csv')
 @boss_required
