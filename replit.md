@@ -3,6 +3,10 @@
 ## Overview
 Flask asosidagi kichik CRM tizimi - boss va admin rollari bilan topshiriqlarni boshqarish.
 
+## Vaqt zonasi
+- O'zbekiston vaqti (UTC+5) bo'yicha ishlaydi
+- 24 soatlik format (masalan: 14:30, 23:45)
+
 ## Features
 - **2 ta rol**: Boss va Admin
 - **Boss imkoniyatlari**:

@@ -21,7 +21,7 @@ import sqlite3
 import hashlib
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import Flask, render_template_string, request, redirect, url_for, session, flash, Response
 
@@ -35,6 +35,21 @@ app.secret_key = os.environ.get('SESSION_SECRET')
 if not app.secret_key:
     raise RuntimeError("SESSION_SECRET muhit o'zgaruvchisi o'rnatilishi shart!")
 DATABASE = 'crm.db'
+
+# O'zbekiston vaqt zonasi (UTC+5)
+UZB_TIMEZONE = timezone(timedelta(hours=5))
+
+def get_uzb_now():
+    """O'zbekiston vaqtini olish"""
+    return datetime.now(UZB_TIMEZONE)
+
+def format_datetime(dt):
+    """Datetime'ni 24 soatlik formatda ko'rsatish"""
+    if dt is None:
+        return '-'
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UZB_TIMEZONE)
+    return dt.strftime('%d.%m.%Y %H:%M')
 
 # Telegram sozlamalari
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
@@ -159,7 +174,7 @@ def check_reminders():
     while True:
         try:
             conn = get_db()
-            now = datetime.now()
+            now = get_uzb_now()
             
             # Bajarilmagan va muddati bor topshiriqlarni olish
             tasks = conn.execute('''
@@ -173,7 +188,12 @@ def check_reminders():
                 if not task['deadline'] or not task['telegram_chat_id']:
                     continue
                 
-                time_left = task['deadline'] - now
+                # Deadline'ni O'zbekiston vaqt zonasiga o'tkazish
+                deadline = task['deadline']
+                if deadline.tzinfo is None:
+                    deadline = deadline.replace(tzinfo=UZB_TIMEZONE)
+                
+                time_left = deadline - now
                 minutes_left = time_left.total_seconds() / 60
                 
                 # 2 soat oldin (120 daqiqa)
@@ -1032,7 +1052,7 @@ def logout():
 @login_required
 def dashboard():
     conn = get_db()
-    now = datetime.now()
+    now = get_uzb_now()
     
     # Statistika
     if session['role'] == 'boss':
@@ -1169,7 +1189,7 @@ def all_tasks():
     admins = conn.execute('SELECT * FROM users WHERE role = "admin"').fetchall()
     conn.close()
     
-    return render_template_string(BASE_TEMPLATE, title='Barcha topshiriqlar', content=render_template_string(ALL_TASKS_TEMPLATE, tasks=tasks, admins=admins, now=datetime.now(), request=request))
+    return render_template_string(BASE_TEMPLATE, title='Barcha topshiriqlar', content=render_template_string(ALL_TASKS_TEMPLATE, tasks=tasks, admins=admins, now=get_uzb_now(), request=request))
 
 @app.route('/my_tasks')
 @login_required
@@ -1181,13 +1201,13 @@ def my_tasks():
     ).fetchall()
     conn.close()
     
-    return render_template_string(BASE_TEMPLATE, title='Mening topshiriqlarim', content=render_template_string(MY_TASKS_TEMPLATE, tasks=tasks, now=datetime.now()))
+    return render_template_string(BASE_TEMPLATE, title='Mening topshiriqlarim', content=render_template_string(MY_TASKS_TEMPLATE, tasks=tasks, now=get_uzb_now()))
 
 @app.route('/complete_task/<int:id>', methods=['POST'])
 @login_required
 def complete_task(id):
     note = request.form.get('note', '').strip()
-    now = datetime.now()
+    now = get_uzb_now()
     
     conn = get_db()
     
