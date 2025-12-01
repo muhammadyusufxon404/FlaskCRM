@@ -2,7 +2,7 @@
 """
 CRM Tizimi - Flask asosidagi kichik CRM
 ========================================
-Boss va Admin rollari, topshiriqlar boshqaruvi, Telegram integratsiyasi
+Boss va Xodim rollari, topshiriqlar boshqaruvi, Telegram integratsiyasi
 
 Default login:
 - Boss: boss / magistr (parolni o'zgartirish tavsiya etiladi!)
@@ -86,7 +86,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
-            role TEXT NOT NULL CHECK(role IN ('boss', 'admin')),
+            role TEXT NOT NULL CHECK(role IN ('boss', 'xodim')),
             full_name TEXT,
             telegram_chat_id TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -141,16 +141,16 @@ def send_telegram_message(chat_id, message):
         print(f"Telegram xato: {e}")
         return False
 
-def notify_admin_new_task(admin_id, task_title, deadline=None):
-    """Yangi topshiriq haqida adminga xabar"""
+def notify_user_new_task(user_id, task_title, deadline=None):
+    """Yangi topshiriq haqida xodimga xabar"""
     conn = get_db()
-    admin = conn.execute('SELECT telegram_chat_id, full_name FROM users WHERE id = ?', (admin_id,)).fetchone()
+    user = conn.execute('SELECT telegram_chat_id, full_name FROM users WHERE id = ?', (user_id,)).fetchone()
     conn.close()
     
-    if admin and admin['telegram_chat_id']:
+    if user and user['telegram_chat_id']:
         deadline_text = f"\n📅 Muddat: {deadline.strftime('%d.%m.%Y %H:%M')}" if deadline else ""
         message = f"📋 <b>Yangi topshiriq!</b>\n\n{task_title}{deadline_text}"
-        send_telegram_message(admin['telegram_chat_id'], message)
+        send_telegram_message(user['telegram_chat_id'], message)
 
 def notify_boss_task_completed(task_id):
     """Topshiriq bajarilganda bossga xabar"""
@@ -159,7 +159,7 @@ def notify_boss_task_completed(task_id):
     
     conn = get_db()
     task = conn.execute('''
-        SELECT t.*, u.full_name as admin_name 
+        SELECT t.*, u.full_name as xodim_name 
         FROM tasks t 
         LEFT JOIN users u ON t.assigned_to = u.id 
         WHERE t.id = ?
@@ -169,7 +169,7 @@ def notify_boss_task_completed(task_id):
     if task:
         message = f"✅ <b>Topshiriq bajarildi!</b>\n\n"
         message += f"📋 {task['title']}\n"
-        message += f"👤 Bajardi: {task['admin_name'] or 'Noma\'lum'}\n"
+        message += f"👤 Bajardi: {task['xodim_name'] or 'Noma\'lum'}\n"
         if task['completion_note']:
             message += f"💬 Izoh: {task['completion_note']}"
         send_telegram_message(BOSS_TELEGRAM_CHAT_ID, message)
@@ -451,7 +451,7 @@ CSS_STYLES = '''
         color: white;
     }
     
-    .badge-admin {
+    .badge-xodim {
         background: linear-gradient(135deg, #11998e, #38ef7d);
         color: white;
     }
@@ -699,7 +699,7 @@ DASHBOARD_TEMPLATE = '''
     <div class="nav">
         <a href="{{ url_for('dashboard') }}">🏠 Bosh sahifa</a>
         {% if session.role == 'boss' %}
-            <a href="{{ url_for('admins') }}">👥 Adminlar</a>
+            <a href="{{ url_for('xodimlar') }}">👥 Xodimlar</a>
             <a href="{{ url_for('add_task') }}">➕ Topshiriq qo'shish</a>
             <a href="{{ url_for('all_tasks') }}">📋 Barcha topshiriqlar</a>
             <a href="{{ url_for('export_csv') }}">📥 CSV Export</a>
@@ -735,14 +735,14 @@ DASHBOARD_TEMPLATE = '''
 </div>
 '''
 
-ADMINS_TEMPLATE = '''
+XODIMLAR_TEMPLATE = '''
 <div class="card">
     <div class="card-header">
-        <h1>👥 Adminlar boshqaruvi</h1>
+        <h1>👥 Xodimlar boshqaruvi</h1>
         <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-sm">⬅ Orqaga</a>
     </div>
     
-    <h3 style="margin-bottom: 20px;">Yangi admin qo'shish</h3>
+    <h3 style="margin-bottom: 20px;">Yangi xodim qo'shish</h3>
     <form method="POST" style="margin-bottom: 30px;">
         <div class="grid">
             <div class="form-group">
@@ -762,10 +762,10 @@ ADMINS_TEMPLATE = '''
                 <input type="text" name="telegram_chat_id" class="form-control" placeholder="Ixtiyoriy">
             </div>
         </div>
-        <button type="submit" class="btn btn-success">➕ Admin qo'shish</button>
+        <button type="submit" class="btn btn-success">➕ Xodim qo'shish</button>
     </form>
     
-    <h3 style="margin-bottom: 20px;">Mavjud adminlar</h3>
+    <h3 style="margin-bottom: 20px;">Mavjud xodimlar</h3>
     <div class="table-container">
         <table>
             <thead>
@@ -779,15 +779,15 @@ ADMINS_TEMPLATE = '''
                 </tr>
             </thead>
             <tbody>
-                {% for admin in admins %}
+                {% for xodim in xodimlar %}
                 <tr>
-                    <td>{{ admin.id }}</td>
-                    <td>{{ admin.username }}</td>
-                    <td>{{ admin.full_name or '-' }}</td>
-                    <td>{{ admin.telegram_chat_id or '-' }}</td>
-                    <td>{{ admin.created_at.strftime('%d.%m.%Y') if admin.created_at else '-' }}</td>
+                    <td>{{ xodim.id }}</td>
+                    <td>{{ xodim.username }}</td>
+                    <td>{{ xodim.full_name or '-' }}</td>
+                    <td>{{ xodim.telegram_chat_id or '-' }}</td>
+                    <td>{{ xodim.created_at.strftime('%d.%m.%Y') if xodim.created_at else '-' }}</td>
                     <td>
-                        <form method="POST" action="{{ url_for('delete_admin', id=admin.id) }}" style="display: inline;">
+                        <form method="POST" action="{{ url_for('delete_xodim', id=xodim.id) }}" style="display: inline;">
                             <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Rostdan o\\'chirmoqchimisiz?')">🗑 O'chirish</button>
                         </form>
                     </td>
@@ -817,11 +817,11 @@ ADD_TASK_TEMPLATE = '''
         </div>
         <div class="grid">
             <div class="form-group">
-                <label>Admin tayinlash *</label>
+                <label>Kimga topshiriq *</label>
                 <select name="assigned_to" class="form-control" required>
                     <option value="">-- Tanlang --</option>
-                    {% for admin in admins %}
-                        <option value="{{ admin.id }}">{{ admin.full_name or admin.username }}</option>
+                    {% for user in users %}
+                        <option value="{{ user.id }}">{{ user.full_name or user.username }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -856,11 +856,11 @@ ALL_TASKS_TEMPLATE = '''
             </select>
         </div>
         <div class="form-group">
-            <label>Admin</label>
-            <select name="admin" class="form-control">
+            <label>Xodim</label>
+            <select name="xodim" class="form-control">
                 <option value="">Barchasi</option>
-                {% for admin in admins %}
-                    <option value="{{ admin.id }}" {{ 'selected' if request.args.get('admin')|int == admin.id }}>{{ admin.full_name or admin.username }}</option>
+                {% for user in users %}
+                    <option value="{{ user.id }}" {{ 'selected' if request.args.get('xodim')|int == user.id }}>{{ user.full_name or user.username }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -873,7 +873,7 @@ ALL_TASKS_TEMPLATE = '''
                 <tr>
                     <th>ID</th>
                     <th>Topshiriq</th>
-                    <th>Admin</th>
+                    <th>Xodim</th>
                     <th>Muddat</th>
                     <th>Holat</th>
                     <th>Yaratilgan</th>
@@ -892,7 +892,7 @@ ALL_TASKS_TEMPLATE = '''
                             <br><small style="color: #28a745;">💬 {{ task.completion_note }}</small>
                         {% endif %}
                     </td>
-                    <td>{{ task.admin_name or '-' }}</td>
+                    <td>{{ task.xodim_name or '-' }}</td>
                     <td>
                         {% if task.deadline %}
                             {{ task.deadline.strftime('%d.%m.%Y %H:%M') }}
@@ -1091,9 +1091,9 @@ def dashboard():
     
     return render_template_string(BASE_TEMPLATE, title='Dashboard', content=render_template_string(DASHBOARD_TEMPLATE, stats=stats, session=session))
 
-@app.route('/admins', methods=['GET', 'POST'])
+@app.route('/xodimlar', methods=['GET', 'POST'])
 @boss_required
-def admins():
+def xodimlar():
     conn = get_db()
     
     if request.method == 'POST':
@@ -1109,27 +1109,27 @@ def admins():
             try:
                 conn.execute(
                     'INSERT INTO users (username, password, role, full_name, telegram_chat_id) VALUES (?, ?, ?, ?, ?)',
-                    (username, hashed, 'admin', full_name or None, telegram_chat_id or None)
+                    (username, hashed, 'xodim', full_name or None, telegram_chat_id or None)
                 )
                 conn.commit()
-                flash(f'Admin "{username}" qo\'shildi!', 'success')
+                flash(f'Xodim "{username}" qo\'shildi!', 'success')
             except sqlite3.IntegrityError:
                 flash('Bu login allaqachon mavjud!', 'error')
     
-    admins = conn.execute('SELECT * FROM users WHERE role = "admin" ORDER BY id DESC').fetchall()
+    xodimlar = conn.execute('SELECT * FROM users WHERE role = "xodim" ORDER BY id DESC').fetchall()
     conn.close()
     
-    return render_template_string(BASE_TEMPLATE, title='Adminlar', content=render_template_string(ADMINS_TEMPLATE, admins=admins))
+    return render_template_string(BASE_TEMPLATE, title='Xodimlar', content=render_template_string(XODIMLAR_TEMPLATE, xodimlar=xodimlar))
 
-@app.route('/delete_admin/<int:id>', methods=['POST'])
+@app.route('/delete_xodim/<int:id>', methods=['POST'])
 @boss_required
-def delete_admin(id):
+def delete_xodim(id):
     conn = get_db()
-    conn.execute('DELETE FROM users WHERE id = ? AND role = "admin"', (id,))
+    conn.execute('DELETE FROM users WHERE id = ? AND role = "xodim"', (id,))
     conn.commit()
     conn.close()
-    flash('Admin o\'chirildi!', 'success')
-    return redirect(url_for('admins'))
+    flash('Xodim o\'chirildi!', 'success')
+    return redirect(url_for('xodimlar'))
 
 @app.route('/add_task', methods=['GET', 'POST'])
 @boss_required
@@ -1155,7 +1155,7 @@ def add_task():
                 pass  # Noto'g'ri format - None qoladi
         
         if not title or not assigned_to:
-            flash('Topshiriq nomi va admin tanlanishi shart!', 'error')
+            flash('Topshiriq nomi va xodim tanlanishi shart!', 'error')
         else:
             try:
                 cursor = conn.execute(
@@ -1165,17 +1165,18 @@ def add_task():
                 conn.commit()
                 
                 # Telegram xabar yuborish
-                notify_admin_new_task(int(assigned_to), title, deadline)
+                notify_user_new_task(int(assigned_to), title, deadline)
                 
                 flash('Topshiriq qo\'shildi!', 'success')
                 return redirect(url_for('all_tasks'))
             except Exception as e:
                 flash(f'Xatolik: {str(e)}', 'error')
     
-    admins = conn.execute('SELECT * FROM users WHERE role = "admin"').fetchall()
+    # Barcha foydalanuvchilar (boss ham, xodim ham)
+    users = conn.execute('SELECT * FROM users ORDER BY role DESC, full_name').fetchall()
     conn.close()
     
-    return render_template_string(BASE_TEMPLATE, title='Topshiriq qo\'shish', content=render_template_string(ADD_TASK_TEMPLATE, admins=admins))
+    return render_template_string(BASE_TEMPLATE, title='Topshiriq qo\'shish', content=render_template_string(ADD_TASK_TEMPLATE, users=users))
 
 @app.route('/all_tasks')
 @boss_required
@@ -1183,7 +1184,7 @@ def all_tasks():
     conn = get_db()
     
     query = '''
-        SELECT t.*, u.full_name as admin_name 
+        SELECT t.*, u.full_name as xodim_name 
         FROM tasks t 
         LEFT JOIN users u ON t.assigned_to = u.id 
         WHERE 1=1
@@ -1195,18 +1196,18 @@ def all_tasks():
         query += ' AND t.status = ?'
         params.append(status)
     
-    admin_id = request.args.get('admin')
-    if admin_id:
+    xodim_id = request.args.get('xodim')
+    if xodim_id:
         query += ' AND t.assigned_to = ?'
-        params.append(int(admin_id))
+        params.append(int(xodim_id))
     
     query += ' ORDER BY t.id DESC'
     
     tasks = conn.execute(query, params).fetchall()
-    admins = conn.execute('SELECT * FROM users WHERE role = "admin"').fetchall()
+    users = conn.execute('SELECT * FROM users ORDER BY role DESC, full_name').fetchall()
     conn.close()
     
-    return render_template_string(BASE_TEMPLATE, title='Barcha topshiriqlar', content=render_template_string(ALL_TASKS_TEMPLATE, tasks=tasks, admins=admins, is_overdue=is_overdue, request=request))
+    return render_template_string(BASE_TEMPLATE, title='Barcha topshiriqlar', content=render_template_string(ALL_TASKS_TEMPLATE, tasks=tasks, users=users, is_overdue=is_overdue, request=request))
 
 @app.route('/my_tasks')
 @login_required
@@ -1253,7 +1254,7 @@ def complete_task(id):
 def export_csv():
     conn = get_db()
     tasks = conn.execute('''
-        SELECT t.id, t.title, t.description, u.full_name as admin_name, 
+        SELECT t.id, t.title, t.description, u.full_name as xodim_name, 
                t.deadline, t.status, t.completion_note, t.completed_at, t.created_at
         FROM tasks t 
         LEFT JOIN users u ON t.assigned_to = u.id 
@@ -1265,14 +1266,14 @@ def export_csv():
     writer = csv.writer(output)
     
     # Sarlavhalar
-    writer.writerow(['ID', 'Topshiriq', 'Tavsif', 'Admin', 'Muddat', 'Holat', 'Izoh', 'Bajarilgan sana', 'Yaratilgan sana'])
+    writer.writerow(['ID', 'Topshiriq', 'Tavsif', 'Xodim', 'Muddat', 'Holat', 'Izoh', 'Bajarilgan sana', 'Yaratilgan sana'])
     
     for task in tasks:
         writer.writerow([
             task['id'],
             task['title'],
             task['description'] or '',
-            task['admin_name'] or '',
+            task['xodim_name'] or '',
             task['deadline'].strftime('%d.%m.%Y %H:%M') if task['deadline'] else '',
             'Bajarilgan' if task['status'] == 'completed' else 'Kutilmoqda',
             task['completion_note'] or '',

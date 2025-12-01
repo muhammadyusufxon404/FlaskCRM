@@ -1,24 +1,24 @@
 # CRM Tizimi
 
 ## Overview
-Flask asosidagi kichik CRM tizimi - boss va admin rollari bilan topshiriqlarni boshqarish.
+Flask asosidagi kichik CRM tizimi - boss va xodim rollari bilan topshiriqlarni boshqarish.
 
 ## Vaqt zonasi
 - O'zbekiston vaqti (UTC+5) bo'yicha ishlaydi
 - 24 soatlik format (masalan: 14:30, 23:45)
 
 ## Features
-- **2 ta rol**: Boss va Admin
+- **2 ta rol**: Boss va Xodim
 - **Boss imkoniyatlari**:
-  - Admin qo'shish/o'chirish
-  - Topshiriq yaratish (matn + ixtiyoriy muddat)
+  - Xodim qo'shish/o'chirish
+  - Topshiriq yaratish (o'ziga yoki xodimlarga)
   - Barcha topshiriqlarni ko'rish va filtr qilish
   - CSV export
-- **Admin imkoniyatlari**:
+- **Xodim imkoniyatlari**:
   - O'ziga berilgan topshiriqlarni ko'rish
   - Topshiriqni bajarildi deb belgilash (izoh bilan)
 - **Telegram integratsiyasi**:
-  - Yangi topshiriqda adminga xabar
+  - Yangi topshiriqda xodimga xabar
   - Bajarilganda bossga xabar
   - Muddat eslatmalari (2 soat, 30 daqiqa, 5 daqiqa oldin)
 
