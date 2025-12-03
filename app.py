@@ -35,9 +35,7 @@ TELEGRAM_AVAILABLE = True
 
 # ============== KONFIGURATSIYA ==============
 app = Flask(__name__)
-app.secret_key = os.environ.get('SESSION_SECRET')
-if not app.secret_key:
-    raise RuntimeError("SESSION_SECRET muhit o'zgaruvchisi o'rnatilishi shart!")
+app.secret_key = os.environ.get('SESSION_SECRET', 'dev-secret-key-change-in-production')
 DATABASE = 'crm.db'
 
 # O'zbekiston vaqt zonasi (UTC+5)
