@@ -24,6 +24,10 @@ import time
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import Flask, render_template_string, request, redirect, url_for, session, flash, Response
+from dotenv import load_dotenv
+
+# .env faylini o'qish
+load_dotenv()
 
 # Telegram uchun
 import requests as http_requests
